@@ -1,38 +1,33 @@
 import pygame
 import random
 
-# Initialize Pygame
-pygame.init()
-
-# Screen dimensions and constants
+# Screen dimensions
 WIDTH, HEIGHT = 800, 600
-FPS = 60
+
+# Speed and Damage Constants
 PLAYER_SPEED = 7
 BUBBLE_SPEED = -8
-ENEMY_SPEED = 2
+ENEMY_SPEED_BASE = 2  # Base enemy speed
+JELLYFISH_DAMAGE = 1
+CRAB_DAMAGE = 2
+MYTHICAL_DAMAGE = 3
 
-# Colors
-OCEAN_BLUE = (0, 50, 100)
-BUBBLE_COLOR = (173, 216, 230)
-PLAYER_COLOR = (0, 255, 255)
-ENEMY_COLOR = (255, 255, 0)
-WHITE = (255, 255, 255)
-
-# Setup screen
-screen = pygame.display.set_mode((WIDTH, HEIGHT))
-pygame.display.set_caption("Underwater Galaga")
-clock = pygame.time.Clock()
+# Load images
+player_img = pygame.image.load("Playersprite.png")  # Player sprite
+bubble_img = pygame.image.load("BubbleSprites.png")  # Bubble projectile
+jellyfish_img = pygame.image.load("JellyFishSprite.png")  # Jellyfish enemy
+crab_img = pygame.image.load("crab.png")  # Crab enemy
+mythical_img = pygame.image.load("mythical.png")  # Mythical creature enemy
 
 
 # Player class (submarine)
 class Player(pygame.sprite.Sprite):
     def __init__(self):
         super().__init__()
-        self.image = pygame.Surface((50, 30))
-        self.image.fill(PLAYER_COLOR)
+        self.image = pygame.transform.scale(player_img, (50, 30))
         self.rect = self.image.get_rect(center=(WIDTH // 2, HEIGHT - 50))
         self.speed = PLAYER_SPEED
-        self.health = 3  # Player starts with 3 health
+        self.health = 5  # Increased health for more challenge
 
     def update(self):
         keys = pygame.key.get_pressed()
@@ -41,16 +36,15 @@ class Player(pygame.sprite.Sprite):
         if keys[pygame.K_RIGHT] and self.rect.right < WIDTH:
             self.rect.x += self.speed
 
-    def take_damage(self):
-        self.health -= 1
+    def take_damage(self, damage):
+        self.health -= damage
 
 
 # Bubble class (projectile)
 class Bubble(pygame.sprite.Sprite):
     def __init__(self, x, y):
         super().__init__()
-        self.image = pygame.Surface((10, 10), pygame.SRCALPHA)
-        pygame.draw.circle(self.image, BUBBLE_COLOR, (5, 5), 5)
+        self.image = pygame.transform.scale(bubble_img, (10, 10))
         self.rect = self.image.get_rect(center=(x, y))
 
     def update(self):
@@ -59,74 +53,81 @@ class Bubble(pygame.sprite.Sprite):
             self.kill()
 
 
-# Enemy class (fish)
+# Base Enemy class
 class Enemy(pygame.sprite.Sprite):
-    def __init__(self):
+    def __init__(self, image, x, y, speed, health, damage):
         super().__init__()
-        self.image = pygame.Surface((40, 30))
-        self.image.fill(ENEMY_COLOR)
-        self.rect = self.image.get_rect(center=(random.randint(0, WIDTH), random.randint(50, 150)))
+        self.image = pygame.transform.scale(image, (40, 40))
+        self.rect = self.image.get_rect(center=(x, y))
+        self.speed = speed
+        self.health = health
+        self.damage = damage
 
     def update(self):
-        self.rect.y += ENEMY_SPEED
+        self.rect.y += self.speed
         if self.rect.top > HEIGHT:
             self.kill()
 
 
-# Main menu function
-def main_menu():
-    font = pygame.font.Font(None, 74)
-    title_text = font.render("Underwater Galaga", True, WHITE)
-    start_text = font.render("Press SPACE to Start", True, WHITE)
-    quit_text = font.render("Press Q to Quit", True, WHITE)
+# Jellyfish enemy - Moves up and down
+class Jellyfish(Enemy):
+    def __init__(self):
+        super().__init__(jellyfish_img, random.randint(50, WIDTH - 50), random.randint(50, 150),
+                         ENEMY_SPEED_BASE, 1, JELLYFISH_DAMAGE)
+        self.direction = 1
 
-    while True:
-        screen.fill(OCEAN_BLUE)
-        screen.blit(title_text, (WIDTH // 2 - title_text.get_width() // 2, HEIGHT // 2 - 100))
-        screen.blit(start_text, (WIDTH // 2 - start_text.get_width() // 2, HEIGHT // 2))
-        screen.blit(quit_text, (WIDTH // 2 - quit_text.get_width() // 2, HEIGHT // 2 + 100))
-
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                pygame.quit()
-                exit()
-            if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_SPACE:  # Start game on SPACE press
-                    return
-                elif event.key == pygame.K_q:  # Quit game on Q press
-                    pygame.quit()
-                    exit()
-
-        pygame.display.flip()
-        clock.tick(FPS)
+    def update(self):
+        self.rect.y += self.speed * self.direction
+        if random.random() < 0.02:  # Randomly changes direction
+            self.direction *= -1
 
 
-# Game over function
-def game_over(score):
-    font = pygame.font.Font(None, 74)
-    game_over_text = font.render("Game Over", True, WHITE)
-    score_text = font.render(f"Score: {score}", True, WHITE)
-    restart_text = font.render("Press R to Restart", True, WHITE)
+# Crab enemy - Moves side to side
+class Crab(Enemy):
+    def __init__(self):
+        super().__init__(crab_img, random.randint(50, WIDTH - 50), random.randint(50, 150),
+                         ENEMY_SPEED_BASE, 2, CRAB_DAMAGE)
+        self.direction = random.choice([-1, 1])
 
-    while True:
-        screen.fill(OCEAN_BLUE)
-        screen.blit(game_over_text, (WIDTH // 2 - game_over_text.get_width() // 2, HEIGHT // 2 - 100))
-        screen.blit(score_text, (WIDTH // 2 - score_text.get_width() // 2, HEIGHT // 2))
-        screen.blit(restart_text, (WIDTH // 2 - restart_text.get_width() // 2, HEIGHT // 2 + 100))
-
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                pygame.quit()
-                exit()
-            if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_r:  # Restart game on R press
-                    return
-
-        pygame.display.flip()
-        clock.tick(FPS)
+    def update(self):
+        self.rect.x += self.speed * self.direction
+        if self.rect.left < 0 or self.rect.right > WIDTH:
+            self.direction *= -1  # Bounces off walls
 
 
-# Main game loop function
+# Mythical creature - Moves fast and fires projectiles
+class Mythical(Enemy):
+    def __init__(self):
+        super().__init__(mythical_img, random.randint(50, WIDTH - 50), random.randint(50, 150),
+                         ENEMY_SPEED_BASE + 1, 3, MYTHICAL_DAMAGE)
+
+    def update(self):
+        self.rect.y += self.speed
+        if random.random() < 0.01:  # Occasionally fires a projectile
+            enemy_bubble = Bubble(self.rect.centerx, self.rect.bottom)
+            return enemy_bubble
+
+# Initialize Pygame
+pygame.init()
+
+# Screen setup using imported WIDTH and HEIGHT
+screen = pygame.display.set_mode((WIDTH, HEIGHT))
+pygame.display.set_caption("Blaster Fish")
+clock = pygame.time.Clock()
+FPS = 60
+
+# Colors
+OCEAN_BLUE = (0, 50, 100)
+WHITE = (255, 255, 255)
+
+# Difficulty Levels
+LEVELS = [
+    {"spawn_rate": 0.02, "enemy_types": [Jellyfish]},
+    {"spawn_rate": 0.04, "enemy_types": [Jellyfish, Crab]},
+    {"spawn_rate": 0.06, "enemy_types": [Jellyfish, Crab, Mythical]},
+]
+
+
 def main_game():
     # Initialize sprite groups
     player_group = pygame.sprite.Group()
@@ -139,6 +140,12 @@ def main_game():
 
     # Game variables
     score = 0
+    level = 0  # Start at level 0
+    spawn_rate = LEVELS[level]["spawn_rate"]
+    enemy_types = LEVELS[level]["enemy_types"]
+
+    last_shot_time = 0
+    SHOOT_DELAY = 250  # milliseconds
 
     running = True
     while running:
@@ -146,15 +153,29 @@ def main_game():
             if event.type == pygame.QUIT:
                 running = False
 
-        # Shoot bubbles when space is pressed
+        # Shooting with cooldown
         keys = pygame.key.get_pressed()
         if keys[pygame.K_SPACE]:
-            bubble = Bubble(player.rect.centerx, player.rect.top)
-            bubble_group.add(bubble)
+            current_time = pygame.time.get_ticks()
+            if current_time - last_shot_time > SHOOT_DELAY:
+                bubble = Bubble(player.rect.centerx, player.rect.top)
+                bubble_group.add(bubble)
+                last_shot_time = current_time
 
-        # Spawn enemies randomly
-        if random.random() < 0.02:  # Adjust spawn rate as needed
-            enemy = Enemy()
+        # Increase difficulty based on score
+        if score > 500 and level == 0:
+            level = 1
+            spawn_rate = LEVELS[level]["spawn_rate"]
+            enemy_types = LEVELS[level]["enemy_types"]
+        elif score > 1500 and level == 1:
+            level = 2
+            spawn_rate = LEVELS[level]["spawn_rate"]
+            enemy_types = LEVELS[level]["enemy_types"]
+
+        # Spawn enemies
+        if random.random() < spawn_rate:
+            enemy_class = random.choice(enemy_types)
+            enemy = enemy_class()
             enemy_group.add(enemy)
 
         # Update all sprites
@@ -162,22 +183,27 @@ def main_game():
         bubble_group.update()
         enemy_group.update()
 
-        # Check for collisions between bubbles and enemies
+        # Check collisions between bubbles and enemies
         for bubble in bubble_group:
-            hits = pygame.sprite.spritecollide(bubble, enemy_group, True)  # Remove enemy on collision
-            if hits:
+            hits = pygame.sprite.spritecollide(bubble, enemy_group, False)
+            for hit in hits:
+                hit.health -= 1
+                if hit.health <= 0:
+                    hit.kill()
+                    score += 100
                 bubble.kill()
-                score += len(hits) * 100
 
-        # Check for collisions between enemies and the player
-        if pygame.sprite.spritecollide(player, enemy_group, True):  # Remove enemy on collision with player
-            player.take_damage()
-            if player.health <= 0:  # End game when health reaches zero
-                game_over(score)
-                return
+        # Check collisions between enemies and the player.
+        # Sum the damage from all collided enemies.
+        collided_enemies = pygame.sprite.spritecollide(player, enemy_group, True)
+        if collided_enemies:
+            total_damage = sum(enemy.damage for enemy in collided_enemies)
+            player.take_damage(total_damage)
+            if player.health <= 0:
+                running = False  # End game when health is zero
 
-        # Draw everything on the screen
-        screen.fill(OCEAN_BLUE)  # Background color
+        # Drawing the game elements
+        screen.fill(OCEAN_BLUE)
         player_group.draw(screen)
         bubble_group.draw(screen)
         enemy_group.draw(screen)
@@ -186,17 +212,13 @@ def main_game():
         font = pygame.font.Font(None, 36)
         score_text = font.render(f"Score: {score}", True, WHITE)
         health_text = font.render(f"Health: {player.health}", True, WHITE)
-
         screen.blit(score_text, (10, 10))
         screen.blit(health_text, (10, 50))
 
-        # Refresh display and maintain framerate
         pygame.display.flip()
         clock.tick(FPS)
 
 
-# Run the game!
 if __name__ == "__main__":
     while True:
-        main_menu()  # Show main menu first
-        main_game()  # Start the main game loop after menu selection
+        main_game()
