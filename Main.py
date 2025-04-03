@@ -16,8 +16,8 @@ MYTHICAL_DAMAGE = 3
 player_img = pygame.image.load("Playersprite.png")  # Player sprite
 bubble_img = pygame.image.load("BubbleSprites.png")  # Bubble projectile
 jellyfish_img = pygame.image.load("JellyFishSprite.png")  # Jellyfish enemy
-crab_img = pygame.image.load("crab.png")  # Crab enemy
-mythical_img = pygame.image.load("mythical.png")  # Mythical creature enemy
+crab_img = pygame.image.load("CrabSprite.png")  # Crab enemy
+mythical_img = pygame.image.load("SharkSprite.png")  # Mythical creature enemy
 
 
 # Player class (submarine)
