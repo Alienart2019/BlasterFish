@@ -26,12 +26,12 @@ bubble_img = pygame.image.load("BubbleSprites.png")
 jellyfish_img = pygame.image.load("JellyFishSprite.png")
 crab_img = pygame.image.load("CrabSprite.png")
 mythical_img = pygame.image.load("SharkSprite.png")
-eel_img = pygame.image.load("EelSprite.webp")
+eel_img = pygame.image.load("EelSprite.png")
 boss_img = pygame.image.load("BossSprite.png")
 powerup_imgs = {
-    "speed": pygame.image.load("SpeedBoost.png"),
-    "spread": pygame.image.load("SpreadShot.png"),
-    "health": pygame.image.load("HealthPack.png")
+    "speed": pygame.image.load("SpeedSprite.png"),
+    "spread": pygame.image.load("SpreadShotSprite.png"),
+    "health": pygame.image.load("HealthSprite.png")
 }
 
 # Screen setup
