@@ -26,7 +26,7 @@ bubble_img = pygame.image.load("BubbleSprites.png")
 jellyfish_img = pygame.image.load("JellyFishSprite.png")
 crab_img = pygame.image.load("CrabSprite.png")
 mythical_img = pygame.image.load("SharkSprite.png")
-eel_img = pygame.image.load("EelSprite.png")
+eel_img = pygame.image.load("EelSprite.webp")
 boss_img = pygame.image.load("BossSprite.png")
 powerup_imgs = {
     "speed": pygame.image.load("SpeedBoost.png"),
