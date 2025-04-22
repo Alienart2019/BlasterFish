@@ -184,7 +184,14 @@ LEVELS = [
      "enemy_types": [lambda: Jellyfish(), lambda: Crab(), lambda: Mythical()]},
     {"name": "Electric Abyss", "description": "Eels join the chaos.", "spawn_rate": 0.07,
      "enemy_types": [lambda: Crab(), lambda: Mythical(), lambda: ElectricEel()]},
-    {"name": "The Deep", "description": "Face the boss!", "spawn_rate": 0, "boss": True}
+    {"name": "The Deep", "description": "Face the boss!", "spawn_rate": 0, "boss": True},
+    {"name": "Toxic Trench", "description": "More aggressive eels swarm in.", "spawn_rate": 0.09,
+     "enemy_types": [lambda: ElectricEel(), lambda: Crab()]},
+    {"name": "Shark Storm", "description": "Mythical creatures dominate.", "spawn_rate": 0.1,
+     "enemy_types": [lambda: Mythical(), lambda: ElectricEel()]},
+    {"name": "Crimson Cascade", "description": "Wave after wave... survive!", "spawn_rate": 0.13,
+     "enemy_types": [lambda: Jellyfish(), lambda: Crab(), lambda: ElectricEel(), lambda: Mythical()]},
+    {"name": "Return of the Boss", "description": "An even stronger boss returns!", "spawn_rate": 0, "boss": True},
 ]
 
 
@@ -200,6 +207,10 @@ def main_game(start_level=0):
     level = start_level
     last_shot = 0
     shoot_delay = 250
+
+    SCORE_THRESHOLD_PER_LEVEL = 2500
+    level_up_timer = 0
+    level_up_display_time = 120  # ~2 seconds at 60 FPS
 
     bubble_particles = [[random.randint(0, WIDTH), random.randint(0, HEIGHT)] for _ in range(30)]
 
@@ -231,6 +242,7 @@ def main_game(start_level=0):
             else:
                 bubble_group.add(Bubble(player.rect.centerx, player.rect.top))
 
+        # Spawn enemies based on level
         if level < 4 and random.random() < LEVELS[level]["spawn_rate"]:
             enemy_group.add(random.choice(LEVELS[level]["enemy_types"])())
 
@@ -238,14 +250,17 @@ def main_game(start_level=0):
             boss = Boss()
             enemy_group.add(boss)
 
+        # Random power-up spawn
         if random.random() < 0.005:
             powerup_group.add(PowerUp())
 
+        # Update all groups
         player_group.update()
         bubble_group.update()
         enemy_group.update()
         powerup_group.update()
 
+        # Bubble hits enemy
         for bubble in bubble_group:
             hits = pygame.sprite.spritecollide(bubble, enemy_group, False)
             for enemy in hits:
@@ -255,10 +270,12 @@ def main_game(start_level=0):
                     enemy.kill()
                 bubble.kill()
 
+        # Enemies hit player
         hits = pygame.sprite.spritecollide(player, enemy_group, True)
         for enemy in hits:
             player.take_damage(enemy.damage)
 
+        # Player gets power-ups
         hits = pygame.sprite.spritecollide(player, powerup_group, True)
         for p in hits:
             if p.type == "health":
@@ -274,19 +291,40 @@ def main_game(start_level=0):
             if event.type == pygame.USEREVENT:
                 player.spread_shot = False
 
+        # LEVEL PROGRESSION
+        if level < len(LEVELS) - 1:
+            if (not LEVELS[level].get("boss") and score >= (level + 1) * SCORE_THRESHOLD_PER_LEVEL) or \
+               (LEVELS[level].get("boss") and boss is None):
+                level += 1
+                enemy_group.empty()
+                level_up_timer = level_up_display_time
+
+        # Draw all sprites
         player_group.draw(screen)
         bubble_group.draw(screen)
         enemy_group.draw(screen)
         powerup_group.draw(screen)
 
+        # UI: Score & Health
         font = pygame.font.Font(None, 36)
         screen.blit(font.render(f"Score: {score}", True, WHITE), (10, 10))
         screen.blit(font.render(f"Health: {player.health}", True, WHITE), (10, 50))
+
+        # LEVEL UP! message
+        if level_up_timer > 0:
+            level_up_font = pygame.font.Font(None, 64)
+            level_name = LEVELS[level]["name"]
+            level_text = level_up_font.render(f"Level {level + 1}: {level_name}!", True, (255, 255, 0))
+            level_up_label = level_up_font.render("LEVEL UP!", True, (255, 100, 100))
+            screen.blit(level_text, (WIDTH // 2 - level_text.get_width() // 2, HEIGHT // 2 - 80))
+            screen.blit(level_up_label, (WIDTH // 2 - level_up_label.get_width() // 2, HEIGHT // 2 - 20))
+            level_up_timer -= 1
 
         if player.health <= 0:
             running = False
 
         pygame.display.flip()
+
 
 
 def launch_tkinter_menu():
