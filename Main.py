@@ -24,15 +24,22 @@ EEL_DAMAGE = 2
 BOSS_DAMAGE = 4
 
 # Load images
-player_img = pygame.image.load("Playersprite.png")
+player_img = pygame.image.load("Playersprite2.png")
 bubble_img = pygame.image.load("BubbleSprites.png")
 jellyfish_img = pygame.image.load("JellyFishSprite.png")
 crab_img = pygame.image.load("CrabSprite.png")
 mythical_img = pygame.image.load("SharkSprite.png")
 eel_img = pygame.image.load("EelSprite.png")
 boss_img = pygame.image.load("BossSprite.png")
-background_img = pygame.image.load("Background.png")
-background_img = pygame.transform.scale(background_img, (WIDTH, HEIGHT))
+
+# Load different backgrounds for each level
+background_imgs = [
+    pygame.transform.scale(pygame.image.load("Background.png"), (WIDTH, HEIGHT)),
+    pygame.transform.scale(pygame.image.load("Background2.png"), (WIDTH, HEIGHT)),
+    pygame.transform.scale(pygame.image.load("Background3.png"), (WIDTH, HEIGHT)),
+    pygame.transform.scale(pygame.image.load("Background4.png"), (WIDTH, HEIGHT)),
+    pygame.transform.scale(pygame.image.load("Background4.png"), (WIDTH, HEIGHT))  # Placeholder reuse for boss level
+]
 
 powerup_imgs = {
     "speed": pygame.image.load("SpeedSprite.png"),
@@ -47,12 +54,12 @@ clock = pygame.time.Clock()
 
 # Colors
 WHITE = (255, 255, 255)
+DARK_BLUE = (25, 25, 112)
 RED = (255, 0, 0)
 GREEN = (0, 255, 0)
 
 # Power-Up Types
 POWER_UP_TYPES = ["speed", "spread", "health"]
-
 
 # Player class
 class Player(pygame.sprite.Sprite):
@@ -83,19 +90,18 @@ class Player(pygame.sprite.Sprite):
     def take_damage(self, damage):
         self.health -= damage
 
-
 # Bubble class
 class Bubble(pygame.sprite.Sprite):
     def __init__(self, x, y):
         super().__init__()
         self.image = pygame.transform.scale(bubble_img, (40, 40))
+        self.image.fill(DARK_BLUE, special_flags=pygame.BLEND_RGB_MULT)
         self.rect = self.image.get_rect(center=(x, y))
 
     def update(self):
         self.rect.y += BUBBLE_SPEED
         if self.rect.bottom < 0:
             self.kill()
-
 
 # Enemy base class
 class Enemy(pygame.sprite.Sprite):
@@ -112,7 +118,6 @@ class Enemy(pygame.sprite.Sprite):
         if self.rect.top > HEIGHT:
             self.kill()
 
-
 class Jellyfish(Enemy):
     def __init__(self):
         super().__init__(jellyfish_img, random.randint(50, WIDTH - 50), 50, ENEMY_SPEED_BASE, 1, JELLYFISH_DAMAGE)
@@ -122,7 +127,6 @@ class Jellyfish(Enemy):
         self.rect.y += self.speed * self.direction
         if random.random() < 0.02:
             self.direction *= -1
-
 
 class Crab(Enemy):
     def __init__(self):
@@ -134,11 +138,9 @@ class Crab(Enemy):
         if self.rect.left < 0 or self.rect.right > WIDTH:
             self.direction *= -1
 
-
 class Mythical(Enemy):
     def __init__(self):
         super().__init__(mythical_img, random.randint(50, WIDTH - 50), 50, ENEMY_SPEED_BASE + 1, 3, MYTHICAL_DAMAGE)
-
 
 class ElectricEel(Enemy):
     def __init__(self):
@@ -150,7 +152,6 @@ class ElectricEel(Enemy):
         if self.rect.left <= 0 or self.rect.right >= WIDTH:
             self.direction *= -1
 
-
 class Boss(Enemy):
     def __init__(self):
         super().__init__(boss_img, WIDTH // 2, 100, 1, 50, BOSS_DAMAGE)
@@ -159,7 +160,6 @@ class Boss(Enemy):
         self.rect.x += self.speed
         if self.rect.left <= 0 or self.rect.right >= WIDTH:
             self.speed *= -1
-
 
 class PowerUp(pygame.sprite.Sprite):
     def __init__(self):
@@ -173,27 +173,29 @@ class PowerUp(pygame.sprite.Sprite):
         if self.rect.top > HEIGHT:
             self.kill()
 
-
 # Levels with names and descriptions
 LEVELS = [
-    {"name": "Shallow Reef", "description": "Jellyfish invade!", "spawn_rate": 0.02,
-     "enemy_types": [lambda: Jellyfish()]},
-    {"name": "Crabby Coast", "description": "Now with crabs!", "spawn_rate": 0.04,
-     "enemy_types": [lambda: Jellyfish(), lambda: Crab()]},
-    {"name": "Mythic Depths", "description": "Mythical beasts approach.", "spawn_rate": 0.06,
-     "enemy_types": [lambda: Jellyfish(), lambda: Crab(), lambda: Mythical()]},
-    {"name": "Electric Abyss", "description": "Eels join the chaos.", "spawn_rate": 0.07,
-     "enemy_types": [lambda: Crab(), lambda: Mythical(), lambda: ElectricEel()]},
+    {"name": "Shallow Reef", "description": "Jellyfish invade!", "spawn_rate": 0.02, "enemy_types": [lambda: Jellyfish()]},
+    {"name": "Crabby Coast", "description": "Now with crabs!", "spawn_rate": 0.03, "enemy_types": [lambda: Jellyfish(), lambda: Crab()]},
+    {"name": "Mythic Depths", "description": "Mythical beasts approach.", "spawn_rate": 0.04, "enemy_types": [lambda: Jellyfish(), lambda: Crab(), lambda: Mythical()]},
+    {"name": "Electric Abyss", "description": "Eels join the chaos.", "spawn_rate": 0.05, "enemy_types": [lambda: Crab(), lambda: Mythical(), lambda: ElectricEel()]},
     {"name": "The Deep", "description": "Face the boss!", "spawn_rate": 0, "boss": True},
-    {"name": "Toxic Trench", "description": "More aggressive eels swarm in.", "spawn_rate": 0.09,
-     "enemy_types": [lambda: ElectricEel(), lambda: Crab()]},
-    {"name": "Shark Storm", "description": "Mythical creatures dominate.", "spawn_rate": 0.1,
-     "enemy_types": [lambda: Mythical(), lambda: ElectricEel()]},
-    {"name": "Crimson Cascade", "description": "Wave after wave... survive!", "spawn_rate": 0.13,
-     "enemy_types": [lambda: Jellyfish(), lambda: Crab(), lambda: ElectricEel(), lambda: Mythical()]},
-    {"name": "Return of the Boss", "description": "An even stronger boss returns!", "spawn_rate": 0, "boss": True},
+    {"name": "Twilight Trench", "description": "Enemies grow fiercer.", "spawn_rate": 0.06, "enemy_types": [lambda: Crab(), lambda: Mythical(), lambda: ElectricEel()]},
+    {"name": "Abyssal Rift", "description": "Swarm attack!", "spawn_rate": 0.07, "enemy_types": [lambda: Jellyfish(), lambda: ElectricEel(), lambda: Crab()]},
+    {"name": "Frozen Deep", "description": "It's getting cold...", "spawn_rate": 0.08, "enemy_types": [lambda: Mythical(), lambda: ElectricEel()]},
+    {"name": "Return of the Boss", "description": "The boss returns!", "spawn_rate": 0, "boss": True}
 ]
 
+def fade_transition():
+    fade = pygame.Surface((WIDTH, HEIGHT))
+    fade.fill((0, 0, 0))
+    for alpha in range(0, 300, 10):
+        fade.set_alpha(alpha)
+        screen.blit(fade, (0, 0))
+        pygame.display.update()
+        pygame.time.delay(30)
+
+# Main game function
 
 def main_game(start_level=0):
     player = Player()
@@ -207,20 +209,16 @@ def main_game(start_level=0):
     level = start_level
     last_shot = 0
     shoot_delay = 250
-
-    SCORE_THRESHOLD_PER_LEVEL = 2500
-    level_up_timer = 0
-    level_up_display_time = 120  # ~2 seconds at 60 FPS
-
     bubble_particles = [[random.randint(0, WIDTH), random.randint(0, HEIGHT)] for _ in range(30)]
 
     running = True
     while running:
         clock.tick(FPS)
-        screen.blit(background_img, (0, 0))
+        bg_image = background_imgs[level % len(background_imgs)]
+        screen.blit(bg_image, (0, 0))
 
         for b in bubble_particles:
-            pygame.draw.circle(screen, (173, 216, 230), (b[0], b[1]), 3)
+            pygame.draw.circle(screen, DARK_BLUE, (b[0], b[1]), 3)
             b[1] -= 1
             if b[1] < 0:
                 b[0] = random.randint(0, WIDTH)
@@ -242,25 +240,31 @@ def main_game(start_level=0):
             else:
                 bubble_group.add(Bubble(player.rect.centerx, player.rect.top))
 
-        # Spawn enemies based on level
-        if level < 4 and random.random() < LEVELS[level]["spawn_rate"]:
-            enemy_group.add(random.choice(LEVELS[level]["enemy_types"])())
+        # Enemy spawning logic
+        if level < 4:
+            if level == 0 and random.random() < 0.02:
+                enemy_group.add(Jellyfish())
+            elif level > 0 and random.random() < 0.02:
+                enemy_group.add(random.choice([Crab(), Mythical(), ElectricEel()]))
 
-        if level == 4 and not boss:
-            boss = Boss()
-            enemy_group.add(boss)
+        # Boss level with reinforcements
+        if level >= 4 and LEVELS[level % len(background_imgs)].get("boss"):
+            if not boss:
+                boss = Boss()
+                enemy_group.add(boss)
+            if random.random() < 0.03:
+                enemy_group.add(random.choice([Jellyfish(), Crab(), ElectricEel(), Mythical()]))
 
-        # Random power-up spawn
-        if random.random() < 0.005:
+        # Less powerups early game
+        powerup_chance = 0.002 if level < 3 else 0.005
+        if random.random() < powerup_chance:
             powerup_group.add(PowerUp())
 
-        # Update all groups
         player_group.update()
         bubble_group.update()
         enemy_group.update()
         powerup_group.update()
 
-        # Bubble hits enemy
         for bubble in bubble_group:
             hits = pygame.sprite.spritecollide(bubble, enemy_group, False)
             for enemy in hits:
@@ -270,12 +274,10 @@ def main_game(start_level=0):
                     enemy.kill()
                 bubble.kill()
 
-        # Enemies hit player
         hits = pygame.sprite.spritecollide(player, enemy_group, True)
         for enemy in hits:
             player.take_damage(enemy.damage)
 
-        # Player gets power-ups
         hits = pygame.sprite.spritecollide(player, powerup_group, True)
         for p in hits:
             if p.type == "health":
@@ -291,34 +293,20 @@ def main_game(start_level=0):
             if event.type == pygame.USEREVENT:
                 player.spread_shot = False
 
-        # LEVEL PROGRESSION
-        if level < len(LEVELS) - 1:
-            if (not LEVELS[level].get("boss") and score >= (level + 1) * SCORE_THRESHOLD_PER_LEVEL) or \
-               (LEVELS[level].get("boss") and boss is None):
-                level += 1
-                enemy_group.empty()
-                level_up_timer = level_up_display_time
-
-        # Draw all sprites
         player_group.draw(screen)
         bubble_group.draw(screen)
         enemy_group.draw(screen)
         powerup_group.draw(screen)
 
-        # UI: Score & Health
         font = pygame.font.Font(None, 36)
         screen.blit(font.render(f"Score: {score}", True, WHITE), (10, 10))
         screen.blit(font.render(f"Health: {player.health}", True, WHITE), (10, 50))
+        screen.blit(font.render(f"Level: {level}", True, WHITE), (10, 90))
 
-        # LEVEL UP! message
-        if level_up_timer > 0:
-            level_up_font = pygame.font.Font(None, 64)
-            level_name = LEVELS[level]["name"]
-            level_text = level_up_font.render(f"Level {level + 1}: {level_name}!", True, (255, 255, 0))
-            level_up_label = level_up_font.render("LEVEL UP!", True, (255, 100, 100))
-            screen.blit(level_text, (WIDTH // 2 - level_text.get_width() // 2, HEIGHT // 2 - 80))
-            screen.blit(level_up_label, (WIDTH // 2 - level_up_label.get_width() // 2, HEIGHT // 2 - 20))
-            level_up_timer -= 1
+        # Slower level progression
+        if level < len(background_imgs) - 1 and score > (level + 1) * 1000:
+            level += 1
+            fade_transition()
 
         if player.health <= 0:
             running = False
@@ -326,7 +314,7 @@ def main_game(start_level=0):
         pygame.display.flip()
 
 
-
+# Tkinter menu
 def launch_tkinter_menu():
     def start_game():
         selected = level_var.get()
@@ -343,9 +331,7 @@ def launch_tkinter_menu():
     tk.Label(root, text="Choose Your Starting Level", font=("Courier", 14), fg="white", bg="#003366").pack(pady=5)
 
     level_var = tk.StringVar()
-    level_options = [
-        f"{i}: {LEVELS[i]['name']} - {LEVELS[i]['description']}" for i in range(len(LEVELS))
-    ]
+    level_options = [f"{i}: {LEVELS[i]['name']} - {LEVELS[i]['description']}" for i in range(len(LEVELS))]
     ttk.Combobox(root, textvariable=level_var, values=level_options, state="readonly", width=60).pack(pady=20)
     level_var.set(level_options[0])
 
@@ -355,7 +341,6 @@ def launch_tkinter_menu():
 
     ttk.Button(root, text="🐟 Start Game 🐟", command=start_game).pack(pady=30)
     root.mainloop()
-
 
 if __name__ == "__main__":
     launch_tkinter_menu()
