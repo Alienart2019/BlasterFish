@@ -1,5 +1,7 @@
 # Full Blaster Fish Mobile Game
 # Features: player, bubbles, enemies, collision, score, health, level system, boss
+# Blaster Fish Mobile with Scrolling Background
+# Adds: beautiful infinite scrolling ocean background 🌊
 
 from kivy.app import App
 from kivy.uix.widget import Widget
@@ -17,40 +19,47 @@ Window.size = (400, 700)
 PLAYER_SPEED = 10
 BUBBLE_SPEED = 8
 BASE_ENEMY_SPEED = 3
-SPAWN_INTERVAL = 1.5  # base spawn rate
+SPAWN_INTERVAL = 1.5  # seconds between enemy spawns
+SCROLL_SPEED = 1  # background scroll speed
 
-# Class for Bubble (bullet)
+# Bubble class
 class Bubble(Image):
     velocity = NumericProperty(0)
 
     def move(self):
         self.y += self.velocity
 
-# Class for Player (fish)
+# Player class
 class Player(Image):
     def move(self, touch_x):
         self.center_x = touch_x
 
-# Class for Enemy (any enemy type)
+# Enemy class
 class Enemy(Image):
     velocity = NumericProperty(0)
-    enemy_type = ""  # jellyfish, crab, shark, eel, boss
+    enemy_type = ""
 
     def move(self):
         self.y -= self.velocity
 
-# Main Game
+# Game class
 class Game(Widget):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-        # Add background
-        self.background = Image(source="Background.png",
-                                 allow_stretch=True, keep_ratio=False,
-                                 size_hint=(None, None),
-                                 size=Window.size,
-                                 pos=(0, 0))
-        self.add_widget(self.background)
+        # Two backgrounds for scrolling
+        self.background1 = Image(source="Background.png",
+                                  allow_stretch=True, keep_ratio=False,
+                                  size_hint=(None, None),
+                                  size=Window.size,
+                                  pos=(0, 0))
+        self.background2 = Image(source="Background.png",
+                                  allow_stretch=True, keep_ratio=False,
+                                  size_hint=(None, None),
+                                  size=Window.size,
+                                  pos=(0, self.background1.height))  # stacked above
+        self.add_widget(self.background1)
+        self.add_widget(self.background2)
 
         # Add player
         self.player = Player(source="PlayerSprite2.png", size_hint=(None, None), size=(80, 80))
@@ -62,14 +71,14 @@ class Game(Widget):
         self.bubbles = []
         self.enemies = []
 
-        # Initialize score, health, level
+        # Score, health, level
         self.score = 0
         self.health = 5
         self.level = 1
         self.enemy_speed = BASE_ENEMY_SPEED
         self.spawn_interval = SPAWN_INTERVAL
 
-        # Score and health display
+        # HUD labels
         self.score_label = Label(text=f"Score: {self.score}", pos=(10, 660), size_hint=(None, None), font_size=24, color=(1,1,1,1))
         self.health_label = Label(text=f"Health: {self.health}", pos=(10, 630), size_hint=(None, None), font_size=24, color=(1,1,1,1))
         self.level_label = Label(text=f"Level: {self.level}", pos=(300, 660), size_hint=(None, None), font_size=24, color=(1,1,1,1))
@@ -96,13 +105,11 @@ class Game(Widget):
         self.add_widget(bubble)
 
     def spawn_enemy(self, dt):
-        # Choose enemy based on level
         if self.level < 5:
             enemy_choice = random.choice(["jellyfish", "crab", "mythical", "eel"])
         else:
-            enemy_choice = "boss"  # level 5 = boss
+            enemy_choice = "boss"
 
-        # Assign properties based on enemy
         if enemy_choice == "jellyfish":
             image_source = "JellyFishSprite.png"
             size = (70, 70)
@@ -122,9 +129,8 @@ class Game(Widget):
         elif enemy_choice == "boss":
             image_source = "BossSprite.png"
             size = (150, 150)
-            speed = self.enemy_speed - 1  # boss moves slower
+            speed = self.enemy_speed - 1
 
-        # Create enemy
         enemy = Enemy(source=image_source, size_hint=(None, None), size=size)
         enemy.x = random.randint(0, self.width - enemy.width)
         enemy.top = self.height
@@ -135,6 +141,16 @@ class Game(Widget):
         self.add_widget(enemy)
 
     def update(self, dt):
+        # Scroll background
+        self.background1.y -= SCROLL_SPEED
+        self.background2.y -= SCROLL_SPEED
+
+        # If a background goes off screen, reset it to the top
+        if self.background1.y <= -self.background1.height:
+            self.background1.y = self.background2.top
+        if self.background2.y <= -self.background2.height:
+            self.background2.y = self.background1.top
+
         # Move bubbles
         for bubble in self.bubbles[:]:
             bubble.move()
@@ -151,7 +167,7 @@ class Game(Widget):
                 self.health -= 1
                 self.update_labels()
 
-        # Check for collisions
+        # Check collisions
         for enemy in self.enemies[:]:
             for bubble in self.bubbles[:]:
                 if enemy.collide_widget(bubble):
@@ -165,7 +181,6 @@ class Game(Widget):
             self.game_over()
 
     def handle_collision(self, enemy):
-        # Award points based on enemy type
         if enemy.enemy_type == "jellyfish":
             self.score += 10
         elif enemy.enemy_type == "crab":
@@ -190,17 +205,14 @@ class Game(Widget):
         self.level += 1
         self.level_label.text = f"Level: {self.level}"
 
-        # Harder levels
         if self.spawn_interval > 0.5:
             self.spawn_interval -= 0.2
         self.enemy_speed += 1
 
-        # Restart enemy spawning with new difficulty
         Clock.unschedule(self.spawn_enemy)
         Clock.schedule_interval(self.spawn_enemy, self.spawn_interval)
 
     def game_over(self):
-        # Stop everything and show Game Over
         Clock.unschedule(self.update)
         Clock.unschedule(self.spawn_enemy)
         self.clear_widgets()
