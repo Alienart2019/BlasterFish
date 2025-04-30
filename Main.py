@@ -1,348 +1,229 @@
-import pygame
+# Full Blaster Fish Mobile Game
+# Features: player, bubbles, enemies, collision, score, health, level system, boss
+# Blaster Fish Mobile with Scrolling Background
+# Adds: beautiful infinite scrolling ocean background 🌊
+
+from kivy.app import App
+from kivy.uix.widget import Widget
+from kivy.uix.image import Image
+from kivy.clock import Clock
+from kivy.uix.label import Label
+from kivy.core.window import Window
+from kivy.properties import NumericProperty
 import random
-import tkinter as tk
-from tkinter import ttk
-from PIL import Image, ImageTk
 
-# Initialize Pygame
-pygame.init()
-
-# Screen dimensions
-WIDTH, HEIGHT = 1200, 800
+# Set window size for PC testing
+Window.size = (400, 700)
 
 # Constants
-PLAYER_SPEED = 7
-BUBBLE_SPEED = -8
-ENEMY_SPEED_BASE = 2
-FPS = 60
-
-# Damage Constants
-JELLYFISH_DAMAGE = 1
-CRAB_DAMAGE = 2
-MYTHICAL_DAMAGE = 3
-EEL_DAMAGE = 2
-BOSS_DAMAGE = 4
-
-# Load images
-player_img = pygame.image.load("Playersprite2.png")
-bubble_img = pygame.image.load("BubbleSprites.png")
-jellyfish_img = pygame.image.load("JellyFishSprite.png")
-crab_img = pygame.image.load("CrabSprite.png")
-mythical_img = pygame.image.load("SharkSprite.png")
-eel_img = pygame.image.load("EelSprite.png")
-boss_img = pygame.image.load("BossSprite.png")
-
-# Load different backgrounds for each level
-background_imgs = [
-    pygame.transform.scale(pygame.image.load("Background.png"), (WIDTH, HEIGHT)),
-    pygame.transform.scale(pygame.image.load("Background2.png"), (WIDTH, HEIGHT)),
-    pygame.transform.scale(pygame.image.load("Background3.png"), (WIDTH, HEIGHT)),
-    pygame.transform.scale(pygame.image.load("Background4.png"), (WIDTH, HEIGHT)),
-    pygame.transform.scale(pygame.image.load("Background4.png"), (WIDTH, HEIGHT))  # Placeholder reuse for boss level
-]
-
-powerup_imgs = {
-    "speed": pygame.image.load("SpeedSprite.png"),
-    "spread": pygame.image.load("SpreadShotSprite.png"),
-    "health": pygame.image.load("HealthSprite.png")
-}
-
-# Screen setup
-screen = pygame.display.set_mode((WIDTH, HEIGHT))
-pygame.display.set_caption("Blaster Fish")
-clock = pygame.time.Clock()
-
-# Colors
-WHITE = (255, 255, 255)
-DARK_BLUE = (25, 25, 112)
-RED = (255, 0, 0)
-GREEN = (0, 255, 0)
-
-# Power-Up Types
-POWER_UP_TYPES = ["speed", "spread", "health"]
-
-# Player class
-class Player(pygame.sprite.Sprite):
-    def __init__(self):
-        super().__init__()
-        self.image = pygame.transform.scale(player_img, (100, 100))
-        self.rect = self.image.get_rect(center=(WIDTH // 2, HEIGHT - 100))
-        self.speed = PLAYER_SPEED
-        self.health = 5
-        self.spread_shot = False
-        self.speed_boost_timer = 0
-
-    def update(self):
-        keys = pygame.key.get_pressed()
-        if keys[pygame.K_LEFT] and self.rect.left > 0:
-            self.rect.x -= self.speed
-        if keys[pygame.K_RIGHT] and self.rect.right < WIDTH:
-            self.rect.x += self.speed
-        if keys[pygame.K_UP] and self.rect.top > 0:
-            self.rect.y -= self.speed
-        if keys[pygame.K_DOWN] and self.rect.bottom < HEIGHT:
-            self.rect.y += self.speed
-        if self.speed_boost_timer > 0:
-            self.speed_boost_timer -= 1
-        else:
-            self.speed = PLAYER_SPEED
-
-    def take_damage(self, damage):
-        self.health -= damage
+PLAYER_SPEED = 10
+BUBBLE_SPEED = 8
+BASE_ENEMY_SPEED = 3
+SPAWN_INTERVAL = 1.5  # seconds between enemy spawns
+SCROLL_SPEED = 1  # background scroll speed
 
 # Bubble class
-class Bubble(pygame.sprite.Sprite):
-    def __init__(self, x, y):
-        super().__init__()
-        self.image = pygame.transform.scale(bubble_img, (40, 40))
-        self.image.fill(DARK_BLUE, special_flags=pygame.BLEND_RGB_MULT)
-        self.rect = self.image.get_rect(center=(x, y))
+class Bubble(Image):
+    velocity = NumericProperty(0)
 
-    def update(self):
-        self.rect.y += BUBBLE_SPEED
-        if self.rect.bottom < 0:
-            self.kill()
+    def move(self):
+        self.y += self.velocity
 
-# Enemy base class
-class Enemy(pygame.sprite.Sprite):
-    def __init__(self, image, x, y, speed, health, damage):
-        super().__init__()
-        self.image = pygame.transform.scale(image, (100, 100))
-        self.rect = self.image.get_rect(center=(x, y))
-        self.speed = speed
-        self.health = health
-        self.damage = damage
+# Player class
+class Player(Image):
+    def move(self, touch_x):
+        self.center_x = touch_x
 
-    def update(self):
-        self.rect.y += self.speed
-        if self.rect.top > HEIGHT:
-            self.kill()
+# Enemy class
+class Enemy(Image):
+    velocity = NumericProperty(0)
+    enemy_type = ""
 
-class Jellyfish(Enemy):
-    def __init__(self):
-        super().__init__(jellyfish_img, random.randint(50, WIDTH - 50), 50, ENEMY_SPEED_BASE, 1, JELLYFISH_DAMAGE)
-        self.direction = 1
+    def move(self):
+        self.y -= self.velocity
 
-    def update(self):
-        self.rect.y += self.speed * self.direction
-        if random.random() < 0.02:
-            self.direction *= -1
+# Game class
+class Game(Widget):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
 
-class Crab(Enemy):
-    def __init__(self):
-        super().__init__(crab_img, random.randint(50, WIDTH - 50), 50, ENEMY_SPEED_BASE, 2, CRAB_DAMAGE)
-        self.direction = random.choice([-1, 1])
+        # Two backgrounds for scrolling
+        self.background1 = Image(source="Background.png",
+                                  allow_stretch=True, keep_ratio=False,
+                                  size_hint=(None, None),
+                                  size=Window.size,
+                                  pos=(0, 0))
+        self.background2 = Image(source="Background.png",
+                                  allow_stretch=True, keep_ratio=False,
+                                  size_hint=(None, None),
+                                  size=Window.size,
+                                  pos=(0, self.background1.height))  # stacked above
+        self.add_widget(self.background1)
+        self.add_widget(self.background2)
 
-    def update(self):
-        self.rect.x += self.speed * self.direction
-        if self.rect.left < 0 or self.rect.right > WIDTH:
-            self.direction *= -1
+        # Add player
+        self.player = Player(source="PlayerSprite2.png", size_hint=(None, None), size=(80, 80))
+        self.player.center_x = self.center_x
+        self.player.y = 20
+        self.add_widget(self.player)
 
-class Mythical(Enemy):
-    def __init__(self):
-        super().__init__(mythical_img, random.randint(50, WIDTH - 50), 50, ENEMY_SPEED_BASE + 1, 3, MYTHICAL_DAMAGE)
+        # Initialize lists
+        self.bubbles = []
+        self.enemies = []
 
-class ElectricEel(Enemy):
-    def __init__(self):
-        super().__init__(eel_img, random.randint(50, WIDTH - 50), 50, ENEMY_SPEED_BASE + 1, 2, EEL_DAMAGE)
-        self.direction = random.choice([-1, 1])
+        # Score, health, level
+        self.score = 0
+        self.health = 5
+        self.level = 1
+        self.enemy_speed = BASE_ENEMY_SPEED
+        self.spawn_interval = SPAWN_INTERVAL
 
-    def update(self):
-        self.rect.x += self.speed * self.direction
-        if self.rect.left <= 0 or self.rect.right >= WIDTH:
-            self.direction *= -1
+        # HUD labels
+        self.score_label = Label(text=f"Score: {self.score}", pos=(10, 660), size_hint=(None, None), font_size=24, color=(1,1,1,1))
+        self.health_label = Label(text=f"Health: {self.health}", pos=(10, 630), size_hint=(None, None), font_size=24, color=(1,1,1,1))
+        self.level_label = Label(text=f"Level: {self.level}", pos=(300, 660), size_hint=(None, None), font_size=24, color=(1,1,1,1))
+        self.add_widget(self.score_label)
+        self.add_widget(self.health_label)
+        self.add_widget(self.level_label)
 
-class Boss(Enemy):
-    def __init__(self):
-        super().__init__(boss_img, WIDTH // 2, 100, 1, 50, BOSS_DAMAGE)
+        # Schedule updates
+        Clock.schedule_interval(self.update, 1/60)  # 60 FPS
+        Clock.schedule_interval(self.spawn_enemy, self.spawn_interval)  # spawn enemies
 
-    def update(self):
-        self.rect.x += self.speed
-        if self.rect.left <= 0 or self.rect.right >= WIDTH:
-            self.speed *= -1
+    def on_touch_move(self, touch):
+        self.player.move(touch.x)
 
-class PowerUp(pygame.sprite.Sprite):
-    def __init__(self):
-        super().__init__()
-        self.type = random.choice(POWER_UP_TYPES)
-        self.image = pygame.transform.scale(powerup_imgs[self.type], (50, 50))
-        self.rect = self.image.get_rect(center=(random.randint(50, WIDTH - 50), -50))
+    def on_touch_down(self, touch):
+        self.shoot_bubble()
 
-    def update(self):
-        self.rect.y += 2
-        if self.rect.top > HEIGHT:
-            self.kill()
+    def shoot_bubble(self):
+        bubble = Bubble(source="BubbleSprites.png", size_hint=(None, None), size=(30, 30))
+        bubble.center_x = self.player.center_x
+        bubble.y = self.player.top
+        bubble.velocity = BUBBLE_SPEED
+        self.bubbles.append(bubble)
+        self.add_widget(bubble)
 
-# Levels with names and descriptions
-LEVELS = [
-    {"name": "Shallow Reef", "description": "Jellyfish invade!", "spawn_rate": 0.02, "enemy_types": [lambda: Jellyfish()]},
-    {"name": "Crabby Coast", "description": "Now with crabs!", "spawn_rate": 0.03, "enemy_types": [lambda: Jellyfish(), lambda: Crab()]},
-    {"name": "Mythic Depths", "description": "Mythical beasts approach.", "spawn_rate": 0.04, "enemy_types": [lambda: Jellyfish(), lambda: Crab(), lambda: Mythical()]},
-    {"name": "Electric Abyss", "description": "Eels join the chaos.", "spawn_rate": 0.05, "enemy_types": [lambda: Crab(), lambda: Mythical(), lambda: ElectricEel()]},
-    {"name": "The Deep", "description": "Face the boss!", "spawn_rate": 0, "boss": True},
-    {"name": "Twilight Trench", "description": "Enemies grow fiercer.", "spawn_rate": 0.06, "enemy_types": [lambda: Crab(), lambda: Mythical(), lambda: ElectricEel()]},
-    {"name": "Abyssal Rift", "description": "Swarm attack!", "spawn_rate": 0.07, "enemy_types": [lambda: Jellyfish(), lambda: ElectricEel(), lambda: Crab()]},
-    {"name": "Frozen Deep", "description": "It's getting cold...", "spawn_rate": 0.08, "enemy_types": [lambda: Mythical(), lambda: ElectricEel()]},
-    {"name": "Return of the Boss", "description": "The boss returns!", "spawn_rate": 0, "boss": True}
-]
+    def spawn_enemy(self, dt):
+        if self.level < 5:
+            enemy_choice = random.choice(["jellyfish", "crab", "mythical", "eel"])
+        else:
+            enemy_choice = "boss"
 
-def fade_transition():
-    fade = pygame.Surface((WIDTH, HEIGHT))
-    fade.fill((0, 0, 0))
-    for alpha in range(0, 300, 10):
-        fade.set_alpha(alpha)
-        screen.blit(fade, (0, 0))
-        pygame.display.update()
-        pygame.time.delay(30)
+        if enemy_choice == "jellyfish":
+            image_source = "JellyFishSprite.png"
+            size = (70, 70)
+            speed = self.enemy_speed
+        elif enemy_choice == "crab":
+            image_source = "CrabSprite.png"
+            size = (90, 90)
+            speed = self.enemy_speed + 1
+        elif enemy_choice == "mythical":
+            image_source = "SharkSprite.png"
+            size = (100, 100)
+            speed = self.enemy_speed + 2
+        elif enemy_choice == "eel":
+            image_source = "EelSprite.png"
+            size = (80, 80)
+            speed = self.enemy_speed + 1
+        elif enemy_choice == "boss":
+            image_source = "BossSprite.png"
+            size = (150, 150)
+            speed = self.enemy_speed - 1
 
-# Main game function
+        enemy = Enemy(source=image_source, size_hint=(None, None), size=size)
+        enemy.x = random.randint(0, self.width - enemy.width)
+        enemy.top = self.height
+        enemy.velocity = speed
+        enemy.enemy_type = enemy_choice
 
-def main_game(start_level=0):
-    player = Player()
-    player_group = pygame.sprite.Group(player)
-    bubble_group = pygame.sprite.Group()
-    enemy_group = pygame.sprite.Group()
-    powerup_group = pygame.sprite.Group()
-    boss = None
+        self.enemies.append(enemy)
+        self.add_widget(enemy)
 
-    score = 0
-    level = start_level
-    last_shot = 0
-    shoot_delay = 250
-    bubble_particles = [[random.randint(0, WIDTH), random.randint(0, HEIGHT)] for _ in range(30)]
+    def update(self, dt):
+        # Scroll background
+        self.background1.y -= SCROLL_SPEED
+        self.background2.y -= SCROLL_SPEED
 
-    running = True
-    while running:
-        clock.tick(FPS)
-        bg_image = background_imgs[level % len(background_imgs)]
-        screen.blit(bg_image, (0, 0))
+        # If a background goes off screen, reset it to the top
+        if self.background1.y <= -self.background1.height:
+            self.background1.y = self.background2.top
+        if self.background2.y <= -self.background2.height:
+            self.background2.y = self.background1.top
 
-        for b in bubble_particles:
-            pygame.draw.circle(screen, DARK_BLUE, (b[0], b[1]), 3)
-            b[1] -= 1
-            if b[1] < 0:
-                b[0] = random.randint(0, WIDTH)
-                b[1] = HEIGHT
+        # Move bubbles
+        for bubble in self.bubbles[:]:
+            bubble.move()
+            if bubble.top > self.height:
+                self.bubbles.remove(bubble)
+                self.remove_widget(bubble)
 
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                running = False
+        # Move enemies
+        for enemy in self.enemies[:]:
+            enemy.move()
+            if enemy.y < 0:
+                self.enemies.remove(enemy)
+                self.remove_widget(enemy)
+                self.health -= 1
+                self.update_labels()
 
-        keys = pygame.key.get_pressed()
-        now = pygame.time.get_ticks()
+        # Check collisions
+        for enemy in self.enemies[:]:
+            for bubble in self.bubbles[:]:
+                if enemy.collide_widget(bubble):
+                    self.handle_collision(enemy)
+                    self.bubbles.remove(bubble)
+                    self.remove_widget(bubble)
+                    break
 
-        if keys[pygame.K_SPACE] and now - last_shot > shoot_delay:
-            last_shot = now
-            if player.spread_shot:
-                bubble_group.add(Bubble(player.rect.centerx - 20, player.rect.top))
-                bubble_group.add(Bubble(player.rect.centerx, player.rect.top))
-                bubble_group.add(Bubble(player.rect.centerx + 20, player.rect.top))
-            else:
-                bubble_group.add(Bubble(player.rect.centerx, player.rect.top))
+        # Check health
+        if self.health <= 0:
+            self.game_over()
 
-        # Enemy spawning logic
-        if level < 4:
-            if level == 0 and random.random() < 0.02:
-                enemy_group.add(Jellyfish())
-            elif level > 0 and random.random() < 0.02:
-                enemy_group.add(random.choice([Crab(), Mythical(), ElectricEel()]))
+    def handle_collision(self, enemy):
+        if enemy.enemy_type == "jellyfish":
+            self.score += 10
+        elif enemy.enemy_type == "crab":
+            self.score += 20
+        elif enemy.enemy_type == "mythical":
+            self.score += 30
+        elif enemy.enemy_type == "eel":
+            self.score += 15
+        elif enemy.enemy_type == "boss":
+            self.score += 100
+            self.level_up()
 
-        # Boss level with reinforcements
-        if level >= 4 and LEVELS[level % len(background_imgs)].get("boss"):
-            if not boss:
-                boss = Boss()
-                enemy_group.add(boss)
-            if random.random() < 0.03:
-                enemy_group.add(random.choice([Jellyfish(), Crab(), ElectricEel(), Mythical()]))
+        self.enemies.remove(enemy)
+        self.remove_widget(enemy)
+        self.update_labels()
 
-        # Less powerups early game
-        powerup_chance = 0.002 if level < 3 else 0.005
-        if random.random() < powerup_chance:
-            powerup_group.add(PowerUp())
+    def update_labels(self):
+        self.score_label.text = f"Score: {self.score}"
+        self.health_label.text = f"Health: {self.health}"
 
-        player_group.update()
-        bubble_group.update()
-        enemy_group.update()
-        powerup_group.update()
+    def level_up(self):
+        self.level += 1
+        self.level_label.text = f"Level: {self.level}"
 
-        for bubble in bubble_group:
-            hits = pygame.sprite.spritecollide(bubble, enemy_group, False)
-            for enemy in hits:
-                enemy.health -= 1
-                if enemy.health <= 0:
-                    score += 100
-                    enemy.kill()
-                bubble.kill()
+        if self.spawn_interval > 0.5:
+            self.spawn_interval -= 0.2
+        self.enemy_speed += 1
 
-        hits = pygame.sprite.spritecollide(player, enemy_group, True)
-        for enemy in hits:
-            player.take_damage(enemy.damage)
+        Clock.unschedule(self.spawn_enemy)
+        Clock.schedule_interval(self.spawn_enemy, self.spawn_interval)
 
-        hits = pygame.sprite.spritecollide(player, powerup_group, True)
-        for p in hits:
-            if p.type == "health":
-                player.health = min(player.health + 1, 5)
-            elif p.type == "speed":
-                player.speed = PLAYER_SPEED + 3
-                player.speed_boost_timer = 300
-            elif p.type == "spread":
-                player.spread_shot = True
-                pygame.time.set_timer(pygame.USEREVENT, 5000)
+    def game_over(self):
+        Clock.unschedule(self.update)
+        Clock.unschedule(self.spawn_enemy)
+        self.clear_widgets()
+        game_over_label = Label(text="GAME OVER", font_size=48, pos=(100, 350), color=(1,0,0,1))
+        self.add_widget(game_over_label)
 
-        for event in pygame.event.get():
-            if event.type == pygame.USEREVENT:
-                player.spread_shot = False
+# App class
+class BlasterFishApp(App):
+    def build(self):
+        return Game()
 
-        player_group.draw(screen)
-        bubble_group.draw(screen)
-        enemy_group.draw(screen)
-        powerup_group.draw(screen)
-
-
-        font = pygame.font.Font(None, 36)
-        screen.blit(font.render(f"Score: {score}", True, WHITE), (10, 10))
-        screen.blit(font.render(f"Health: {player.health}", True, WHITE), (10, 50))
-        screen.blit(font.render(f"Level: {level}", True, WHITE), (10, 90))
-
-        # Slower level progression
-        if level < len(background_imgs) - 1 and score > (level + 1) * 1000:
-            level += 1
-            fade_transition()
-
-        if player.health <= 0:
-            running = False
-
-        pygame.display.flip()
-
-
-# Tkinter menu
-def launch_tkinter_menu():
-    def start_game():
-        selected = level_var.get()
-        start_level = int(selected.split(":")[0])
-        root.destroy()
-        main_game(start_level=start_level)
-
-    root = tk.Tk()
-    root.title("Blaster Fish - Level Select")
-    root.geometry("500x400")
-    root.configure(bg="#003366")
-
-    tk.Label(root, text="✨ Blaster Fish ✨", font=("Courier", 24, "bold"), fg="#00ffff", bg="#003366").pack(pady=10)
-    tk.Label(root, text="Choose Your Starting Level", font=("Courier", 14), fg="white", bg="#003366").pack(pady=5)
-
-    level_var = tk.StringVar()
-    level_options = [f"{i}: {LEVELS[i]['name']} - {LEVELS[i]['description']}" for i in range(len(LEVELS))]
-    ttk.Combobox(root, textvariable=level_var, values=level_options, state="readonly", width=60).pack(pady=20)
-    level_var.set(level_options[0])
-
-    style = ttk.Style()
-    style.theme_use("clam")
-    style.configure("TButton", foreground="#003366", background="#00ffff", font=("Courier", 12, "bold"))
-
-    ttk.Button(root, text="🐟 Start Game 🐟", command=start_game).pack(pady=30)
-    root.mainloop()
-
+# Run the app
 if __name__ == "__main__":
-    launch_tkinter_menu()
-    pygame.quit()
+    BlasterFishApp().run()
