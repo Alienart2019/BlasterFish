@@ -298,6 +298,7 @@ def main_game(start_level=0):
         enemy_group.draw(screen)
         powerup_group.draw(screen)
 
+
         font = pygame.font.Font(None, 36)
         screen.blit(font.render(f"Score: {score}", True, WHITE), (10, 10))
         screen.blit(font.render(f"Health: {player.health}", True, WHITE), (10, 50))
